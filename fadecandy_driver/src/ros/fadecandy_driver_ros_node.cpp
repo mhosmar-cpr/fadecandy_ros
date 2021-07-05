@@ -32,18 +32,14 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <ros/init.h>
-#include <ros/node_handle.h>
+#include "rclcpp/rclcpp.hpp"
 
-#include "./fadecandy_driver_ros.h"
+#include "./fadecandy_driver_ros.hpp"
 
-int main(int argc, char** argv)
+int main(int argc, char ** argv)
 {
-  ros::init(argc, argv, "fadecandy_driver");
-  ros::NodeHandle local_nh("~");
-  double restart_patience = local_nh.param("restart_patience", 1.);
-
-  fadecandy_driver::FadecandyDriverROS node(restart_patience);
-  node.run();
+  rclcpp::init(argc, argv);
+  rclcpp::spin(std::make_shared<fadecandy_driver::FadecandyDriverROS>());
+  rclcpp::shutdown();
   return 0;
 }

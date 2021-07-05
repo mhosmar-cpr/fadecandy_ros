@@ -1,22 +1,18 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5)
 project(fadecandy_msgs)
 
-find_package(catkin REQUIRED COMPONENTS
-  message_generation
-  std_msgs
+set(CMAKE_CXX_STANDARD 14)
+
+find_package(rosidl_default_generators REQUIRED)
+
+find_package(std_msgs REQUIRED)
+
+ament_export_dependencies(rosidl_default_runtime std_msgs)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/LEDArray.msg"
+  "msg/LEDStrip.msg"
+  DEPENDENCIES std_msgs
 )
 
-add_message_files(FILES
-  LEDArray.msg
-  LEDStrip.msg
-)
-
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-)
-
-catkin_package(CATKIN_DEPENDS
-  message_runtime
-  std_msgs
-)
+ament_package()

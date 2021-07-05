@@ -32,94 +32,90 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <fadecandy_msgs/LEDArray.h>
+#include <fadecandy_msgs/msg/led_array.hpp>
 
-#include "./fadecandy_driver_ros.h"
+#include "./fadecandy_driver_ros.hpp"
+
+using namespace std::chrono_literals;
 
 namespace fadecandy_driver
 {
-FadecandyDriverROS::FadecandyDriverROS(double restart_patience) : restart_patience_(restart_patience)
+FadecandyDriverROS::FadecandyDriverROS()
+: Node("fadecandy_driver")
 {
-  ros::NodeHandle nh;
+  this->get_parameter_or("restart_patience", restart_patience_, 1.);
 
-  diagnostic_updater_.add("Info", this, &FadecandyDriverROS::diagnosticsCallback);
-  diagnostics_timer_ = nh.createTimer(ros::Duration(1.), &FadecandyDriverROS::diagnosticsTimerCallback, this);
+  diagnostic_updater_ = std::make_shared<diagnostic_updater::Updater>(this);
 
-  connect_timer_ = nh.createTimer(ros::Duration(restart_patience_), &FadecandyDriverROS::connectTimerCallback, this);
+  diagnostic_updater_->add("Info", this, &FadecandyDriverROS::diagnosticsCallback);
+  diagnostics_timer_ = this->create_wall_timer(
+    1000ms, std::bind(&FadecandyDriverROS::diagnosticsTimerCallback, this));
 
-  led_subscriber_ = nh.subscribe<fadecandy_msgs::LEDArray>("set_leds", 1, &FadecandyDriverROS::setLedsCallback, this);
-}
+  connect_timer_ = this->create_wall_timer(
+    restart_patience_ * 1000ms, std::bind(&FadecandyDriverROS::connectTimerCallback, this));
 
-void FadecandyDriverROS::run()
-{
+  led_subscriber_ = this->create_subscription<fadecandy_msgs::msg::LEDArray>(
+    "set_leds", 10, std::bind(&FadecandyDriverROS::setLedsCallback, this, std::placeholders::_1));
+
   setupConnection();
-  ros::spin();
 }
 
 void FadecandyDriverROS::setupConnection()
 {
-  try
-  {
+  try {
     auto serial_number = driver_.connect();
-    diagnostic_updater_.setHardwareID(serial_number);
-    ROS_INFO("Fadecandy device is connected.");
-  }
-  catch (const std::exception& e)
-  {
-    ROS_WARN_ONCE("Failed to connect to device: %s; will retry every %f seconds", e.what(), restart_patience_);
+    diagnostic_updater_->setHardwareID(serial_number);
+    RCLCPP_INFO(this->get_logger(), "Fadecandy device is connected.");
+  } catch (const std::exception & e) {
+    RCLCPP_WARN_ONCE(
+      this->get_logger(),
+      "Failed to connect to device: %s; will retry every %f seconds",
+      e.what(), restart_patience_);
   }
 }
 
-void FadecandyDriverROS::setLedsCallback(const fadecandy_msgs::LEDArrayConstPtr& led_array_msg)
+void FadecandyDriverROS::setLedsCallback(const fadecandy_msgs::msg::LEDArray::SharedPtr msg)
 {
-  if (!driver_.isConnected())
-  {
+  if (!driver_.isConnected()) {
     return;
   }
 
   std::vector<std::vector<Color>> led_array_colors;
-  for (const auto& strip : led_array_msg->strips)
-  {
+  for (const auto & strip : msg->strips) {
     std::vector<Color> led_strip_colors;
-    for (const auto& color : strip.colors)
-    {
-      led_strip_colors.emplace_back(static_cast<int>(color.r * 255), static_cast<int>(color.g * 255),
-                                    static_cast<int>(color.b * 255));
+    for (const auto & color : strip.colors) {
+      led_strip_colors.emplace_back(
+        static_cast<int>(color.r * 255), static_cast<int>(color.g * 255),
+        static_cast<int>(color.b * 255));
     }
     led_array_colors.push_back(led_strip_colors);
   }
 
-  try
-  {
+  try {
     driver_.setColors(led_array_colors);
-  }
-  catch (const std::exception& e)
-  {
-    ROS_ERROR("Error occured: %s ", e.what());
-  }
-};
-
-void FadecandyDriverROS::diagnosticsCallback(diagnostic_updater::DiagnosticStatusWrapper& diagnostic_status)
-{
-  if (driver_.isConnected())
-  {
-    diagnostic_status.summary(diagnostic_msgs::DiagnosticStatus::OK, "Connected");
-  }
-  else
-  {
-    diagnostic_status.summary(diagnostic_msgs::DiagnosticStatus::ERROR, "Disconnected");
+  } catch (const std::exception & e) {
+    RCLCPP_ERROR(this->get_logger(), "Error occured: %s ", e.what());
   }
 }
 
-void FadecandyDriverROS::diagnosticsTimerCallback(const ros::TimerEvent& e)
+void FadecandyDriverROS::diagnosticsCallback(
+  diagnostic_updater::DiagnosticStatusWrapper & diagnostic_status)
 {
-  diagnostic_updater_.force_update();
+  if (driver_.isConnected()) {
+    diagnostic_status.summary(diagnostic_msgs::msg::DiagnosticStatus::OK, "Connected");
+  } else {
+    diagnostic_status.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR, "Disconnected");
+  }
 }
 
-void FadecandyDriverROS::connectTimerCallback(const ros::TimerEvent& e)
+void FadecandyDriverROS::diagnosticsTimerCallback()
 {
-  if (driver_.isConnected())
-  {
+  diagnostic_updater_->force_update();
+}
+
+void FadecandyDriverROS::connectTimerCallback()
+{
+  if (driver_.isConnected()) {
     return;
   }
   setupConnection();

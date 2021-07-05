@@ -32,28 +32,23 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <diagnostic_updater/diagnostic_updater.h>
-#include <fadecandy_msgs/LEDArray.h>
-#include <ros/publisher.h>
-#include <ros/subscriber.h>
+#include <chrono>
+
+#include <diagnostic_updater/diagnostic_updater.hpp>
+#include <fadecandy_msgs/msg/led_array.hpp>
+#include "rclcpp/rclcpp.hpp"
 
 #include "../fadecandy_driver.h"
 
 namespace fadecandy_driver
 {
-class FadecandyDriverROS
+class FadecandyDriverROS : public rclcpp::Node
 {
 public:
   //!
   //! \brief FadecandyDriverRos fadecandy driver ROS wrapper
-  //! \param restart_patience Restart patience
   //!
-  FadecandyDriverROS(double restart_patience);
-
-  //!
-  //! \brief run Listen to LED messages and publishes diagnostic of the driver
-  //!
-  void run();
+  FadecandyDriverROS();
 
 private:
   //!
@@ -69,31 +64,31 @@ private:
   //!
   //! \brief led_subscriber_ LED messages subscriber
   //!
-  ros::Subscriber led_subscriber_;
-  void setLedsCallback(const fadecandy_msgs::LEDArrayConstPtr& msg);
+  rclcpp::Subscription<fadecandy_msgs::msg::LEDArray>::SharedPtr led_subscriber_;
+  void setLedsCallback(const fadecandy_msgs::msg::LEDArray::SharedPtr msg);
 
   //!
   //! \brief diagnosticsCallback Diagnostics callback
   //! \param diagnostic_status Status that should be updated
   //!
-  void diagnosticsCallback(diagnostic_updater::DiagnosticStatusWrapper& diagnostic_status);
+  void diagnosticsCallback(diagnostic_updater::DiagnosticStatusWrapper & diagnostic_status);
 
   //!
   //! \brief timer_ Periodic timer for updating the diagnostics
   //!
-  ros::Timer diagnostics_timer_;
-  void diagnosticsTimerCallback(const ros::TimerEvent& e);
+  rclcpp::TimerBase::SharedPtr diagnostics_timer_;
+  void diagnosticsTimerCallback();
 
   //!
   //! \brief connection_check_timer_ Periodic timer for checking the connection
   //!
-  ros::Timer connect_timer_;
-  void connectTimerCallback(const ros::TimerEvent& e);
+  rclcpp::TimerBase::SharedPtr connect_timer_;
+  void connectTimerCallback();
 
   //!
   //! \brief diagnostic_updater_ Diagnostic updater
   //!
-  diagnostic_updater::Updater diagnostic_updater_;
+  std::shared_ptr<diagnostic_updater::Updater> diagnostic_updater_;
 
   //!
   //! \brief restart_patience_ Restart patience time
