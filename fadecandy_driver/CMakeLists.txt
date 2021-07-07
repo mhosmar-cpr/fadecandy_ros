@@ -61,5 +61,5 @@ install(
     ${PROJECT_NAME}_ros
     fadecandy_node
   LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
