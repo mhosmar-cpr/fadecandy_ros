@@ -1,39 +1,52 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-import rospy
+import rclpy
+from rclpy.node import Node
 from fadecandy_msgs.msg import LEDArray, LEDStrip
 from std_msgs.msg import ColorRGBA
 
 
-def main():
-    rospy.init_node('fadecandy_client', anonymous=True)
+class ExampleClient(Node):
+    def __init__(self):
+        super().__init__('fadecandy_client')
+        self.led_array_pub_ = self.create_publisher(LEDArray, 'set_leds', 10)
+        timer_period = 0.1  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
 
-    led_array_pub = rospy.Publisher('set_leds', LEDArray, queue_size=1)
+        self.colors = [ColorRGBA(r=1.0, g=1.0, b=1.0), ColorRGBA(r=1.0), ColorRGBA(g=1.0), ColorRGBA(b=1.0)]
+        self.num_led_strips = 8
+        self.bar_start = 0
+        self.bar_length = 3
+        self.num_leds = 21
+        self.color_i = 0
 
-    colors = [ColorRGBA(r=1, g=1, b=1), ColorRGBA(r=1), ColorRGBA(g=1), ColorRGBA(b=1)]
 
-    num_led_strips = 8
-    bar_start = 0
-    bar_length = 3
-    num_leds = 21
-    color_i = 0
-    while not rospy.is_shutdown():
+
+    def timer_callback(self):
         led_array = LEDArray()
 
-        for led_strip in range(num_led_strips):
+        for led_strip in range(self.num_led_strips):
             led_strip = LEDStrip()
-            led_strip.colors = [ColorRGBA()] * num_leds
-            for bar_offset in range(bar_length):
-                led_strip.colors[(bar_start + bar_offset) % num_leds] = colors[color_i]
+            led_strip.colors = [ColorRGBA()] * self.num_leds
+            for bar_offset in range(self.bar_length):
+                led_strip.colors[(self.bar_start + bar_offset) % self.num_leds] = self.colors[self.color_i]
             led_array.strips.append(led_strip)
 
-        led_array_pub.publish(led_array)
+        self.led_array_pub_.publish(led_array)
 
-        bar_start = (bar_start + 1) % num_leds
-        if bar_start == 0:
-            color_i = (color_i + 1) % len(colors)
-        rospy.sleep(0.1)
+        self.bar_start = (self.bar_start + 1) % self.num_leds
+        if self.bar_start == 0:
+            self.color_i = (self.color_i + 1) % len(self.colors)
 
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    example_client = ExampleClient()
+
+    rclpy.spin(example_client)
+    example_client.destroy_node()
+    rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
