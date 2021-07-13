@@ -1,4 +1,4 @@
-name: CI
+name: ROS2-CI
 
 on: [push, pull_request]
 
@@ -7,13 +7,8 @@ jobs:
     strategy:
       matrix:
         env:
-          - ROS_DISTRO: melodic
-          - ROS_DISTRO: noetic
           - ROS_DISTRO: foxy
           - ROS_DISTRO: galactic
-    env:
-      CATKIN_LINT: pedantic 
-      CLANG_FORMAT_CHECK: file
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
